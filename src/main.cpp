@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "BNO055_support.h"
-#include <I2C_DMAC.h>
+#include <Wire.h>
 
 void initBNO055(struct bno055_t * bno055_sensor);
 BNO055_RETURN_FUNCTION_TYPE bno055_format_accel_data(struct bno055_accel * accRaw, struct bno055_accel_float * accActual);
@@ -36,7 +36,8 @@ void setup(){
 								while(!Serial) {};
 
 								//Initialize I2C communication
-								I2C.begin(400000);
+								Wire.begin();
+								Wire.setClock(400000);
 
 								//Initialize BNO055 sensor
 								initBNO055(&myBNO);
@@ -45,8 +46,7 @@ void setup(){
 }
 
 void loop() {
-								if ((millis() - lastTime) >= 50
-												) //To stream at 10Hz without using additional timers
+								if ((millis() - lastTime) >= 50) //To stream at 10Hz without using additional timers
 								{
 																lastTime = millis();
 
@@ -61,6 +61,10 @@ void loop() {
 																bno055_format_gyro_data(&rawGyroData, &actualGyroData);
 																bno055_format_euler_data(&rawEulerData, &actualEulerData);
 																bno055_format_quaternion_data(&rawQuaternionData, &actualQuaternionData);
+
+																Serial.print(actualAccelData.x); Serial.print(" ");
+																Serial.print(actualAccelData.y); Serial.print(" ");
+																Serial.println(actualAccelData.z);
 								}
 }
 
