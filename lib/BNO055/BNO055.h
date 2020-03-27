@@ -36,6 +36,7 @@
 #define __BNO055_H__
 
 #include <limits.h> /* needed to test integer limits */
+#include <stddef.h>
 
 
 /* find correct data type for signed/unsigned 16 bit

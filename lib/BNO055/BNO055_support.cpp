@@ -60,14 +60,14 @@
 BNO055_RETURN_FUNCTION_TYPE BNO_Init(struct bno055_t *bno055)
 {
 
-	BNO055_RETURN_FUNCTION_TYPE comres = BNO055_Zero_U8X;
-	//Link the function pointers for communication (late-binding)
-	bno055->bus_read = BNO055_I2C_bus_read;
-	bno055->bus_write = BNO055_I2C_bus_write;
-	bno055->delay_msec = _delay;
-	//Initialization from the BNO055 API
-	comres = bno055_init(bno055);
-	return comres;
+								BNO055_RETURN_FUNCTION_TYPE comres = BNO055_Zero_U8X;
+								//Link the function pointers for communication (late-binding)
+								bno055->bus_read = BNO055_I2C_bus_read;
+								bno055->bus_write = BNO055_I2C_bus_write;
+								bno055->delay_msec = _delay;
+								//Initialization from the BNO055 API
+								comres = bno055_init(bno055);
+								return comres;
 
 }
 
@@ -106,22 +106,18 @@ BNO055_RETURN_FUNCTION_TYPE BNO_Init(struct bno055_t *bno055)
  ****************************************************************************/
 BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_read(unsigned char dev_addr,unsigned char reg_addr, unsigned char *reg_data, unsigned char cnt)
 {
-	BNO055_RETURN_FUNCTION_TYPE comres = BNO055_Zero_U8X;
-  I2C.readBytes(dev_addr, reg_addr, reg_data, cnt);
-  while(I2C.readBusy){};
-
-
-	// Wire.beginTransmission(dev_addr);	//Start of transmission
-	// Wire.write(reg_addr);				//Desired start register
-	// Wire.endTransmission();	//Stop of transmission
-	// delayMicroseconds(150);
-	// Wire.requestFrom(dev_addr, cnt);	//Request data
-	// while(Wire.available())				//The slave device may send less than requested
-	// {
-	// 	*reg_data = Wire.read();		//Receive a byte
-	// 	reg_data++;						//Increment pointer
-	// }
-	return comres;
+								BNO055_RETURN_FUNCTION_TYPE comres = BNO055_Zero_U8X;
+								Wire.beginTransmission(dev_addr); //Start of transmission
+								Wire.write(reg_addr); //Desired start register
+								Wire.endTransmission(); //Stop of transmission
+								delayMicroseconds(150);
+								Wire.requestFrom(dev_addr, cnt); //Request data
+								while(Wire.available()) //The slave device may send less than requested
+								{
+																*reg_data = Wire.read(); //Receive a byte
+																reg_data++; //Increment pointer
+								}
+								return comres;
 }
 
 
@@ -161,19 +157,17 @@ BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_read(unsigned char dev_addr,unsigned 
  ****************************************************************************/
 BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_write(unsigned char dev_addr,unsigned char reg_addr, unsigned char *reg_data, unsigned char cnt)
 {
-	BNO055_RETURN_FUNCTION_TYPE comres = BNO055_Zero_U8X;
-  I2C.writeBytes(dev_addr, reg_addr, reg_data, cnt);
-  while(I2C.writeBusy){};
-	// Wire.beginTransmission(dev_addr);	//Start of transmission
-	// Wire.write(reg_addr);				//Desired start register
-	// for(unsigned char index = 0; index < cnt; index++)
-	// {
-	// 	Wire.write(*reg_data);			//Write the data
-	// 	reg_data++;						//Increment pointer
-	// }
-	// Wire.endTransmission();	//Stop of transmission
-	// delayMicroseconds(150);
-	return comres;
+								BNO055_RETURN_FUNCTION_TYPE comres = BNO055_Zero_U8X;
+								Wire.beginTransmission(dev_addr); //Start of transmission
+								Wire.write(reg_addr); //Desired start register
+								for(unsigned char index = 0; index < cnt; index++)
+								{
+																Wire.write(*reg_data); //Write the data
+																reg_data++; //Increment pointer
+								}
+								Wire.endTransmission(); //Stop of transmission
+								delayMicroseconds(150);
+								return comres;
 }
 
 /*****************************************************************************
@@ -203,5 +197,5 @@ BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_write(unsigned char dev_addr,unsigned
  ****************************************************************************/
 void _delay(unsigned int period)
 {
-	delay(long(period));
+								delay(long(period));
 }

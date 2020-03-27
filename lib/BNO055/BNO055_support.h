@@ -34,7 +34,7 @@
 extern "C" {
 #include "BNO055.h"
 }
-#include <I2C_DMAC.h>
+#include <Wire.h>
 #include "Arduino.h"
 
 /*****************************************************************************
