@@ -37,6 +37,7 @@
 
 #include <limits.h> /* needed to test integer limits */
 #include <stddef.h>
+#include <math.h>
 
 
 /* find correct data type for signed/unsigned 16 bit
@@ -2345,4 +2346,17 @@ BNO055_RETURN_FUNCTION_TYPE bno055_get_gyro_anymotion_awake_duration(
 
 BNO055_RETURN_FUNCTION_TYPE bno055_set_gyro_anymotion_awake_duration(
 								unsigned char gyro_am_awk);
+
+/* User Added Functions */
+BNO055_RETURN_FUNCTION_TYPE bno055_format_accel_data(struct bno055_accel * accRaw, struct bno055_accel_float * accActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_format_mag_data(struct bno055_mag * magRaw, struct bno055_mag_float * magActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_format_gyro_data(struct bno055_gyro * gyroRaw, struct bno055_gyro_float * gyroActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_format_euler_data(struct bno055_euler * eulerRaw, struct bno055_euler_float * eulerActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_format_quaternion_data(struct bno055_quaternion * quaternionRaw, struct bno055_quaternion_float * quaternionActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_accel_data(struct bno055_accel_float * accActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_data(struct bno055_mag_float * magActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_gyro_data(struct bno055_gyro_float * gyroActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_euler_data(struct bno055_euler_float * eulerActual);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_quaternion_data(struct bno055_quaternion_float * quaternionActual);
+
 #endif

@@ -15796,3 +15796,193 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_gyro_anymotion_awake_duration(
         }
         return comres;
 }
+
+/* User added functions */
+
+/**
+ * Formats accelerometer data based on selected units
+ * @method bno055_format_accel_data
+ * @param  accRaw                   [raw accelerometer data]
+ * @param  accActual                [formatted accelerometer data]
+ * @return                          [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_format_accel_data(struct bno055_accel * accRaw, struct bno055_accel_float * accActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        unsigned char unit;
+        bno055_get_accel_unit( &unit);
+        if (unit == 0) {
+                accActual->x = ((float)(accRaw->x)) / 100;
+                accActual->y = ((float)(accRaw->y)) / 100;
+                accActual->z = ((float)(accRaw->z)) / 100;
+        } else if (unit == 1) {
+                accActual->x = (float)(accRaw->x);
+                accActual->y = (float)(accRaw->y);
+                accActual->z = (float)(accRaw->z);
+        } else {
+                return ERROR1;
+        }
+
+        return calres;
+}
+
+/**
+ * Formats magnetometer data
+ * @method bno055_format_mag_data
+ * @param  magRaw                 [raw magnetometer data]
+ * @param  magActual              [formatted magnetometer data]
+ * @return                        [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_format_mag_data(struct bno055_mag * magRaw, struct bno055_mag_float * magActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        magActual->x = ((float)(magRaw->x)) / 16;
+        magActual->y = ((float)(magRaw->y)) / 16;
+        magActual->z = ((float)(magRaw->z)) / 16;
+
+        return calres;
+}
+
+/**
+ * Formats gyroscope data based on selected units
+ * @method bno055_format_gyro_data
+ * @param  gyroRaw                 [raw gyroscope data]
+ * @param  gyroActual              [formatted gyroscope data]
+ * @return                         [result of calcualtion]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_format_gyro_data(struct bno055_gyro * gyroRaw, struct bno055_gyro_float * gyroActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        unsigned char unit;
+        bno055_get_gyro_unit(&unit);
+        if (unit == 0) {
+                gyroActual->x = ((float)(gyroRaw->x)) / 16;
+                gyroActual->y = ((float)(gyroRaw->y)) / 16;
+                gyroActual->z = ((float)(gyroRaw->z)) / 16;
+        } else if(unit == 1) {
+                gyroActual->x = ((float)(gyroRaw->x)) / 900;
+                gyroActual->y = ((float)(gyroRaw->y)) / 900;
+                gyroActual->z = ((float)(gyroRaw->z)) / 900;
+        }
+        else {
+                return ERROR1;
+        }
+
+        return calres;
+}
+
+/**
+ * Formats euler data based on selected units
+ * @method bno055_format_euler_data
+ * @param  eulerRaw                 [raw euler data]
+ * @param  eulerActual              [formatted euler data]
+ * @return                          [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_format_euler_data(struct bno055_euler * eulerRaw, struct bno055_euler_float * eulerActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        unsigned char unit;
+        bno055_get_euler_unit(&unit);
+        if (unit == 0) {
+                eulerActual->h = ((float)(eulerRaw->h)) / 16;
+                eulerActual->r = ((float)(eulerRaw->r)) / 16;
+                eulerActual->p = ((float)(eulerRaw->p)) / 16;
+        } else if(unit == 1) {
+                eulerActual->h = ((float)(eulerRaw->h)) / 900;
+                eulerActual->r = ((float)(eulerRaw->r)) / 900;
+                eulerActual->p = ((float)(eulerRaw->p)) / 900;
+        }
+        else {
+                return ERROR1;
+        }
+
+        return calres;
+}
+
+/**
+ * Formats quaternion data
+ * @method bno055_format_quaternion_data
+ * @param  quaternionRaw                 [raw quaternion data]
+ * @param  quaternionActual              [formatted quaternion data]
+ * @return                               [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_format_quaternion_data(struct bno055_quaternion * quaternionRaw, struct bno055_quaternion_float * quaternionActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        quaternionActual->w = ((float)(quaternionRaw->w)) / exp2f(14);
+        quaternionActual->x = ((float)(quaternionRaw->x)) / exp2f(14);
+        quaternionActual->y = ((float)(quaternionRaw->y)) / exp2f(14);
+        quaternionActual->z = ((float)(quaternionRaw->z)) / exp2f(14);
+
+        return calres;
+}
+
+/**
+ * Get formatted accel data
+ * @method bno055_get_accel_data
+ * @param  accActual             [actual accel data]
+ * @return                       [result of calcualtion]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_get_accel_data(struct bno055_accel_float * accActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        struct bno055_accel accRaw;
+        calres = bno055_read_accel_xyz(&accRaw);
+        calres = bno055_format_accel_data(&accRaw, accActual);
+
+        return calres;
+}
+
+/**
+ * Get formatted mag data
+ * @method bno055_get_mag_data
+ * @param  magActual              [actual mag data]
+ * @return                        [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_data(struct bno055_mag_float * magActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        struct bno055_mag magRaw;
+        calres = bno055_read_mag_xyz(&magRaw);
+        calres = bno055_format_mag_data(&magRaw, magActual);
+
+        return calres;
+}
+
+/**
+ * Get formatted gyro data
+ * @method bno055_get_gyro_data
+ * @param  gyroActual           [actual gyro data]
+ * @return                      [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_get_gyro_data(struct bno055_gyro_float * gyroActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        struct bno055_gyro gyroRaw;
+        calres = bno055_read_gyro_xyz(&gyroRaw);
+        calres = bno055_format_gyro_data(&gyroRaw, gyroActual);
+
+        return calres;
+}
+
+/**
+ * Get formatted euler data
+ * @method bno055_get_euler_data
+ * @param  eulerActual           [actual euler data]
+ * @return                       [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_get_euler_data(struct bno055_euler_float * eulerActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        struct bno055_euler eulerRaw;
+        calres = bno055_read_euler_hrp(&eulerRaw);
+        calres = bno055_format_euler_data(&eulerRaw, eulerActual);
+
+        return calres;
+}
+
+/**
+ * Get formatted quaternion data
+ * @method bno055_get_quaternion_data
+ * @param  quaternionActual           [formatted quaternion data]
+ * @return                            [result of calculation]
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_get_quaternion_data(struct bno055_quaternion_float * quaternionActual) {
+        BNO055_RETURN_FUNCTION_TYPE calres = BNO055_Zero_U8X;
+        struct bno055_quaternion quaternionRaw;
+        calres = bno055_read_quaternion_wxyz(&quaternionRaw);
+        calres = bno055_format_quaternion_data(&quaternionRaw, quaternionActual);
+
+        return calres;
+}
