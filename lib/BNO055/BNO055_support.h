@@ -138,7 +138,7 @@ BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_read(unsigned char,unsigned char, uns
  * Remarks:
  *
  ****************************************************************************/
-BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_write(unsigned char ,unsigned char , unsigned char* , unsigned char );
+BNO055_RETURN_FUNCTION_TYPE BNO055_I2C_bus_write(unsigned char,unsigned char, unsigned char*, unsigned char );
 
 /*****************************************************************************
  * Description: *//**\brief
