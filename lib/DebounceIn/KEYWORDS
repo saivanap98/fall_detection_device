@@ -1,0 +1,14 @@
+DebounceIn        KEYWORD1
+set_samples       KEYWORD2
+assert_low        KEYWORD2
+assert_high       KEYWORD2
+assert_low_long   KEYWORD2
+assert_high_long  KEYWORD2
+assert_rise       KEYWORD2
+assert_fall       KEYWORD2
+read              KEYWORD2
+
+RISE_MASK_16      LITERAL1
+FALL_MASK_16      LITERAL1
+HIGH_MASK_16      LITERAL1
+LOW_MASK_16       LITERAL1
