@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "BNO055_support.h"
 #include "DebounceIn.h"
+#include "ArduinoBLE.h"
 
 void initBNO055(struct bno055_t * bno055_sensor);
 uint8_t calibrateBNO055();
@@ -8,10 +9,21 @@ void togglePower(void);
 void statusLED(void);
 void powerMonitor(void);
 void detectFall(void);
+void hapticFeedback(uint32_t flags);
+void resetSystem(void);
+void manualTrigger(void);
+void notifications(void);
+void updateBLE(void);
 
-#define SENSOR_READ_FLAG    0x1
-rtos::EventFlags sensor_flag;
+#define SENSOR_READ_FLAG            (1UL << 0)
+#define FALL_DETECTED_FLAG          (1UL << 1)
+#define MANUAL_TRIGGER_FLAG         (1UL << 2)
+#define RESET_FLAG                  (1UL << 3)
+#define BLE_MESSAGE_FLAG            (1UL << 4)
 
+rtos::EventFlags event_flags;
+
+//Sensor and Fall Detection Parameters
 #define OUTPUT_DATA_RATE    100     //Output data rate in Hz
 #define ASVM_THRESHOLD      2500    //asvm threshold: 2500mg = 24.525m/s^2
 #define THETA_THRESHOLD     65      //theta threshold in degrees
@@ -19,12 +31,13 @@ rtos::EventFlags sensor_flag;
 #define POWER_BUTTON        P1_11   //PinName for Power button
 #define RESET_BUTTON        P1_12   //PinName for Reset button
 #define MANUAL_TRIGGER      P1_13   //PinName for Manual Trigger button
+#define MOTOR_PIN           P1_8
 
 #define LED_RED             P0_24   //PinName for Red LED
 #define LED_GREEN           P0_16   //PinName for Green LED
 #define LED_BLUE            P0_6    //PinName for Blue LED
 
-enum power_state {POWER_OFF=0, POWER_ON=1, CHARGING=2, CHARGED=3};
+enum power_state {POWER_OFF=0, POWER_ON, CHARGING, CHARGED};
 
 struct bno055_t myBNO;
 
@@ -37,7 +50,13 @@ struct bno055_quaternion_float quat;
 uint8_t powerState = 0;
 uint8_t systemStatus = 0;
 rtos::Semaphore one_slot(1);
+mbed::LowPowerTimeout timeout;
 
+//Custom BLE GATT Service
+BLEService alertService("19B10000-E8F2-537E-4F6C-D104768A1214");
+BLEUnsignedIntCharacteristic notificationChar("19B10001-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
+BLEDescriptor notificationDescriptor("2904", "Fall Detection Alert");
+uint8_t btValue = 0x0;
 
 float asvm, theta;
 unsigned long lastTime = 0;
@@ -49,6 +68,7 @@ mbed::DigitalOut red(LED_RED);
 mbed::DigitalOut green(LED_GREEN);
 mbed::DigitalOut blue(LED_BLUE);
 mbed::DigitalOut blink(P0_13);
+mbed::PwmOut motor(MOTOR_PIN);
 DebounceIn pbut(POWER_BUTTON, PullUp, &one_slot);
 DebounceIn reset(RESET_BUTTON, PullUp, &one_slot);
 DebounceIn trigger(MANUAL_TRIGGER, PullUp, &one_slot);
@@ -58,17 +78,38 @@ rtos::Thread sensor;
 rtos::Thread powerMan;
 rtos::Thread notif;
 
-
-
 void setup(){
-		//Initialize the Serial Port to view information on the Serial Monitor
-		powerState = 1;
-		systemStatus = 1;
+		//Initalize variables and system states
+		powerState = POWER_ON;
+		systemStatus = powerState;
 		red.write(1);
 		green.write(1);
 		blue.write(1);
 		pbut.assert_low_long(togglePower);
+		reset.assert_fall(resetSystem);
+		trigger.assert_fall(manualTrigger);
+		event_flags.clear();
+		event_flags.set(SENSOR_READ_FLAG);
+		motor.period(4.0f);
 
+		//Begin Bluetooth initialization
+		if (!BLE.begin()) {
+				Serial.println("Starting BLE failed!");
+				while (1);
+		}
+
+		BLE.setDeviceName("FallDetect");
+		BLE.setAppearance(0x512);
+		BLE.setLocalName("FallDetect");
+		BLE.setAdvertisedService(alertService);
+		alertService.addCharacteristic(notificationChar);
+		BLE.addService(alertService);
+		notificationChar.writeValue(btValue);
+		notificationChar.addDescriptor(notificationDescriptor);
+		//Start advertising
+		BLE.advertise();
+
+		//Initialize the Serial Port to view information on the Serial Monitor
 		Serial.begin(115200);
 		while(!Serial) {};
 
@@ -80,13 +121,22 @@ void setup(){
 		initBNO055(&myBNO);
 		//calibrateBNO055();
 
+		//Start worker threads
 		sensor.start(detectFall);
 		powerMan.start(powerMonitor);
-
+		notif.start(notifications);
 }
 
 void loop() {
-		rtos::ThisThread::sleep_for(2000);
+		//Main BLE notification thread
+		BLEDevice central = BLE.central();
+
+		uint8_t oldValue;
+		notificationChar.readValue(oldValue);
+		if(btValue != oldValue && systemStatus != POWER_OFF) {
+				notificationChar.writeValue(btValue);
+		}
+		rtos::ThisThread::sleep_for(500);
 		// 		/* Adafruit BNO055 bunny Processing sketch Serial data */
 		// 		bno055_get_euler_data(&eul);
 		// 		/* The processing sketch expects data as heading, pitch, roll */
@@ -178,6 +228,11 @@ void initBNO055(struct bno055_t * bno055_sensor) {
 		Serial.println(bno055_sensor->dev_addr, HEX);
 }
 
+/**
+ * Calibrate BNO055 Sensor
+ * @method calibrateBNO055
+ * @return system calibration level
+ */
 uint8_t calibrateBNO055() {
 		uint8_t calibration = 0;
 		uint8_t sys, gyro, accel, mag = 0;
@@ -230,6 +285,10 @@ uint8_t calibrateBNO055() {
 		return calibration;
 }
 
+/**
+ * Monitor system and battery power states and adjust status indicator LED
+ * @method powerMonitor
+ */
 void powerMonitor(void) {
 		while(true) {
 				batteryLevel = batIn.read();
@@ -244,22 +303,76 @@ void powerMonitor(void) {
 		}
 }
 
-void togglePower(void) {
-		if(powerState == POWER_ON) {
-				powerState = POWER_OFF;
-				sensor_flag.clear(SENSOR_READ_FLAG);
-				Serial.println(sensor.get_state());
-				blink.write(1);
-		}else {
-				powerState = POWER_ON;
-				sensor_flag.set(SENSOR_READ_FLAG);
-				Serial.println(sensor.get_state());
-				blink.write(0);
+/**
+ * System Notification handler
+ * @method notifications
+ */
+void notifications(void) {
+		while(true) {
+				event_flags.wait_any(SENSOR_READ_FLAG, osWaitForever, false);
+				uint32_t _flags = event_flags.wait_any(FALL_DETECTED_FLAG | MANUAL_TRIGGER_FLAG, osWaitForever, false);
+				hapticFeedback(_flags);
+				rtos::ThisThread::sleep_for(3000);
 		}
 }
 
+/**
+ * Toggler system power states and peripheral devices
+ * @method togglePower
+ */
+void togglePower(void) {
+		if(powerState == POWER_ON) {
+				powerState = POWER_OFF;
+				event_flags.clear();
+				bno055_set_powermode(POWER_MODE_SUSPEND);
+				delay(20);
+		}else {
+				powerState = POWER_ON;
+				bno055_set_powermode(POWER_MODE_NORMAL);
+				bno055_set_operation_mode(OPERATION_MODE_NDOF);
+				delay(20);
+				event_flags.set(SENSOR_READ_FLAG);
+		}
+}
+
+/**
+ * Manual system variable and state reset
+ * NOT AN ACTUAL HARDWARE RESET
+ * @method resetSystem
+ */
+void resetSystem(void) {
+		if(systemStatus != POWER_OFF) {
+				event_flags.clear();
+				event_flags.set(SENSOR_READ_FLAG | RESET_FLAG);
+		}
+}
+
+/**
+ * External button trigger handler
+ * @method manualTrigger
+ */
+void manualTrigger(void) {
+		if(systemStatus != POWER_OFF) {
+				event_flags.set(MANUAL_TRIGGER_FLAG);
+				timeout.attach(mbed::callback(updateBLE), 15);
+		}
+}
+
+/**
+ * Internal system flag handler
+ * @method updateBLE
+ */
+void updateBLE(void) {
+		btValue = (uint8_t)(event_flags.get() & (FALL_DETECTED_FLAG | MANUAL_TRIGGER_FLAG));
+		blink = !blink;
+}
+
+/**
+ * Status LED handler
+ * @method statusLED
+ */
 void statusLED(void) {
-		switch(powerState) {
+		switch(systemStatus) {
 		case 1: red.write(1);
 				green.write(1);
 				blue.write(0);
@@ -279,9 +392,15 @@ void statusLED(void) {
 		}
 }
 
+/**
+ * Sensor read function and fall detection handler. Implements basic threshold based
+ * fall detection algorithm. Threshold values can be modified in variables
+ * at the start of this file.
+ * @method detectFall
+ */
 void detectFall(void) {
 		while(true) {
-				sensor_flag.wait_all(SENSOR_READ_FLAG, osWaitForever, false);
+				event_flags.wait_all(SENSOR_READ_FLAG, osWaitForever, false);
 				bno055_get_accel_data(&ax);
 				asvm = sqrt(ax.x * ax.x + ax.y * ax.y + ax.z * ax.z);
 
@@ -304,11 +423,34 @@ void detectFall(void) {
 						}
 						theta /= 100;
 						if(theta > THETA_THRESHOLD) {
-								red.write(0);
-								Serial.println("Fall Detected");
+								event_flags.set(FALL_DETECTED_FLAG);
+								timeout.attach(mbed::callback(updateBLE), 15);
 						}
 				}
 				rtos::ThisThread::sleep_for(100);
 				one_slot.release();
+		}
+}
+
+/**
+ * Haptic feedback motor handler
+ * @method hapticFeedback
+ * @param  flags          [description]
+ */
+void hapticFeedback(uint32_t flags) {
+		if((flags & FALL_DETECTED_FLAG)  == FALL_DETECTED_FLAG) {
+				//indicate to user fall detected
+				motor.write(0.8f);
+				delay(5000);
+				motor.write(0.0f);
+		}else if((flags & MANUAL_TRIGGER_FLAG) == MANUAL_TRIGGER_FLAG) {
+				//indicate to user manual trigger detected
+				motor.write(0.8f);
+				delay(3000);
+				motor.write(0.0f);
+				delay(3000);
+				motor.write(0.8f);
+				delay(3000);
+				motor.write(0.0f);
 		}
 }
